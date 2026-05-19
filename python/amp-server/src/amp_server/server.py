@@ -28,7 +28,7 @@ mcp = FastMCP(
     "amp-server",
     instructions=(
         "AMP (Agent Memory Protocol) Full-conformant memory server. "
-        "Implements amp.encode, amp.recall, amp.forget, amp.consolidate, amp.pin, amp.stats."
+        "Implements amp.encode, amp.recall, amp.forget, amp.consolidate, amp.pin, amp.move_memory, amp.stats."
     ),
 )
 
@@ -157,6 +157,32 @@ def amp_pin(agent_id: str, id: str) -> Dict[str, Any]:
         return {"status": "not_found"}
     smriti.pin(id)
     return {"status": "pinned"}
+
+
+# ── amp.move_memory ───────────────────────────────────────────────────────────
+
+@mcp.tool(
+    name="amp.move_memory",
+    description=(
+        "Move a memory to a room with the given target_topic. If a room with the "
+        "topic already exists, the memory joins it (merge semantics); otherwise a "
+        "new room is created. Returns the target room id and topic, or status='not_found'."
+    ),
+)
+def amp_move_memory(agent_id: str, id: str, target_topic: str) -> Dict[str, Any]:
+    if not target_topic or not target_topic.strip():
+        return {"status": "invalid_target_topic"}
+    smriti = _get_agent(agent_id)
+    room = smriti.palace.move_memory(id, target_topic)
+    if room is None:
+        return {"status": "not_found"}
+    # Persist immediately so move survives a crash
+    smriti.palace.save()
+    return {
+        "status": "moved",
+        "room_id": room.id,
+        "topic": room.topic,
+    }
 
 
 # ── amp.stats ─────────────────────────────────────────────────────────────────
